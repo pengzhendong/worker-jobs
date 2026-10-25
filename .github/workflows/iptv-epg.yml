@@ -1,7 +1,7 @@
 name: IPTV EPG
 on:
   workflow_dispatch:
-  # Enable only after validating the production handover and GitHub Actions usage terms.
+  # Enable after the first production handover checks pass.
   # schedule:
   #   - cron: '23 4,10,16,22 * * *'
 permissions:
@@ -22,7 +22,7 @@ jobs:
       - uses: ./.github/actions/iptv
         with:
           ssh-key: ${{ secrets.IPTV_READ_SSH_KEY }}
-          paused-until: ${{ vars.IPTV_PAUSED_UNTIL || '2026-11-01T00:00:00Z' }}
+          paused-until: ${{ vars.IPTV_PAUSED_UNTIL }}
       - name: Update EPG
         working-directory: vendor/iptv
         env:

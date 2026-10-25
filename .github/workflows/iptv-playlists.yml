@@ -21,7 +21,7 @@ jobs:
       - uses: ./.github/actions/iptv
         with:
           ssh-key: ${{ secrets.IPTV_READ_SSH_KEY }}
-          paused-until: ${{ vars.IPTV_PAUSED_UNTIL || '2026-11-01T00:00:00Z' }}
+          paused-until: ${{ vars.IPTV_PAUSED_UNTIL }}
       - name: Update playlist drafts
         working-directory: vendor/iptv
         env:

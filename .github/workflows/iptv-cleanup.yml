@@ -2,7 +2,7 @@ name: IPTV EPG cleanup
 on:
   workflow_dispatch:
   # schedule:
-  #   - cron: '43 4 * * 0'
+  #   - cron: '43 4 * * *'
 permissions:
   contents: read
 concurrency:
@@ -21,7 +21,7 @@ jobs:
       - uses: ./.github/actions/iptv
         with:
           ssh-key: ${{ secrets.IPTV_READ_SSH_KEY }}
-          paused-until: ${{ vars.IPTV_PAUSED_UNTIL || '2026-11-01T00:00:00Z' }}
+          paused-until: ${{ vars.IPTV_PAUSED_UNTIL }}
       - name: Clean unreferenced EPG objects
         working-directory: vendor/iptv
         env:

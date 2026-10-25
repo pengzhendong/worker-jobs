@@ -6,7 +6,7 @@ inputs:
     required: true
   paused-until:
     description: UTC deadline before which production jobs remain paused
-    default: '2026-11-01T00:00:00Z'
+    default: ''
 runs:
   using: composite
   steps:
@@ -18,7 +18,8 @@ runs:
         IPTV_READ_KEY: ${{ inputs.ssh-key }}
       run: |
         node --input-type=module -e '
-          const until = Date.parse(process.env.PAUSED_UNTIL);
+          const raw = process.env.PAUSED_UNTIL?.trim();
+          const until = raw ? Date.parse(raw) : 0;
           if (!Number.isFinite(until) || Date.now() < until) {
             console.error("IPTV jobs are paused; no production task was started.");
             process.exit(1);
