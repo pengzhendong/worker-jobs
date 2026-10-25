@@ -1,8 +1,8 @@
 name: IPTV EPG cleanup
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: '43 4 * * *'
+  schedule:
+    - cron: '43 4 * * *'
 permissions:
   contents: read
 concurrency:

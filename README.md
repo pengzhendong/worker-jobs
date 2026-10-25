@@ -4,17 +4,17 @@
 
 ## 当前状态
 
-这是待接入的最小版本：三个 workflow 只支持手动触发，且 `IPTV_JOBS_ENABLED` 默认为关闭。Cron 配置仅保留为注释，生产凭据正在接入，完成首次验证后再切换线上调度。原仓库仍保持暂停，避免同时运行。
+三个生产任务已分别手动验证成功，并已启用定时调度。`IPTV_JOBS_ENABLED=true`；原 IPTV 仓库对应的三个定时工作流已删除，Worker 的 EPG Cron 和兜底调度也已移除。CI、部署与台标同步保留在 IPTV，不由本仓库运行。
 
 公开仓库标准 runner 的计费规则不等于用途许可。GitHub 对 Actions 有软件项目相关用途限制；这里的 EPG 抓取、订阅更新和清理属于线上数据维护，正式启用前应确认这种用途适用，不将本仓库当作通用免费后台计算服务。见 [GitHub Actions 用途规则](https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features#actions)。
 
 ## 任务
 
-| Workflow | 任务 | 单次最长时间 |
-| --- | --- | --- |
-| IPTV EPG | 更新节目表并保存可恢复进度 | 6 分钟，执行器内部预算约 4 分钟 |
-| IPTV playlists | 同步订阅到草稿，不发布到电视 | 3 分钟 |
-| IPTV EPG cleanup | 清理未引用且超过保留期的节目缓存对象 | 5 分钟 |
+| Workflow | 任务 | 北京时间 | 单次最长时间 |
+| --- | --- | --- | --- |
+| IPTV EPG | 更新节目表并保存可恢复进度 | 每天 00:23、06:23、12:23、18:23 | 6 分钟，执行器内部预算约 4 分钟 |
+| IPTV playlists | 同步订阅到草稿，不发布到电视 | 每天 07:23 | 3 分钟 |
+| IPTV EPG cleanup | 清理未引用且超过七天的节目缓存对象 | 每天 12:43 | 5 分钟 |
 
 三个任务共享 `iptv-maintenance` 并发组，避免在本仓库同时修改存储。GitHub 仅保留一个等待中的运行，新请求可能替换等待任务；这里不提供可靠队列语义。原执行器的 D1 租约、检查点及每日写入预算继续生效。
 
@@ -52,12 +52,10 @@ git submodule update --init vendor/iptv
 
 公开仓库的日志可被他人查看。执行器的原始输出在此丢弃，只公布固定的任务成功 / 失败状态；不上传业务日志、源码、缓存数据或其他 artifact。失败时在 IPTV 私有后台检查状态，必要时在私有环境运行同一固定版本诊断。
 
-## 正式切换顺序
+## 验证与维护
 
-1. 确认用途，配置专用只读源码权限及限定范围的 Cloudflare 凭据。
-2. 确认生产权限后，分别手动验证三个任务；成功后再启用 Cron。
-3. 停用 IPTV 原仓库中对应的三个定时 workflow；保留原 CI、部署与台标同步。
-4. 修改 IPTV Worker 的 EPG watchdog，使唤醒与状态查询指向这里，避免旧入口继续调度；不能只开启新 Cron。
-5. 最后启用本仓库的 Cron，并更新此前的恢复跟进，防止新旧任务同时恢复。
+首次生产验证（2026-10-25）：[EPG](https://github.com/pengzhendong/worker-jobs/actions/runs/40177477330)、[订阅](https://github.com/pengzhendong/worker-jobs/actions/runs/40177437349)、[缓存清理](https://github.com/pengzhendong/worker-jobs/actions/runs/40177300772) 均成功。定时调度可能延迟，按需要查看运行记录及 IPTV 后台的来源、任务状态。
 
-本次仅准备入口，没有执行以上生产切换步骤。
+升级业务代码时，先在私有 IPTV 完成检查并推送，再更新这里的 submodule 固定指针。若需暂停，将 `IPTV_JOBS_ENABLED` 改为 `false`，或设置 `IPTV_PAUSED_UNTIL`；仅暂停变量不会取消已经执行中的任务。不要同时恢复原仓库的旧定时入口。
+
+本仓库没有自派发、Worker 兜底或通用任务队列，不需要额外 GitHub Actions 写入令牌。

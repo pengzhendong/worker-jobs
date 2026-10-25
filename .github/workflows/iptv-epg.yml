@@ -1,9 +1,8 @@
 name: IPTV EPG
 on:
   workflow_dispatch:
-  # Enable after the first production handover checks pass.
-  # schedule:
-  #   - cron: '23 4,10,16,22 * * *'
+  schedule:
+    - cron: '23 4,10,16,22 * * *'
 permissions:
   contents: read
 concurrency:
