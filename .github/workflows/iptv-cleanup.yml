@@ -1,0 +1,42 @@
+name: IPTV EPG cleanup
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '43 4 * * 0'
+permissions:
+  contents: read
+concurrency:
+  group: iptv-maintenance
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: github.ref == 'refs/heads/main' && vars.IPTV_JOBS_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: ./.github/actions/iptv
+        with:
+          ssh-key: ${{ secrets.IPTV_READ_SSH_KEY }}
+          paused-until: ${{ vars.IPTV_PAUSED_UNTIL || '2026-11-01T00:00:00Z' }}
+      - name: Clean unreferenced EPG objects
+        working-directory: vendor/iptv
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.IPTV_CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ vars.IPTV_D1_DATABASE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.IPTV_D1_TOKEN }}
+          CLOUDFLARE_EPG_BUCKET: ${{ vars.IPTV_EPG_BUCKET }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.IPTV_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.IPTV_R2_SECRET_ACCESS_KEY }}
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID" && test -n "$CLOUDFLARE_D1_DATABASE_ID" && test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_EPG_BUCKET" && test -n "$CLOUDFLARE_R2_ACCESS_KEY_ID" && test -n "$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
+          if node --experimental-strip-types scripts/cleanup-epg-objects.ts >/dev/null 2>&1; then
+            echo "IPTV EPG cleanup completed."
+          else
+            echo "::error::IPTV EPG cleanup failed. Inspect the private application; raw business logs are not published here."
+            exit 1
+          fi

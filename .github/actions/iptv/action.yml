@@ -1,0 +1,54 @@
+name: Prepare IPTV runner
+description: Check out the exact private IPTV revision and install only its Node runner dependencies
+inputs:
+  ssh-key:
+    description: Dedicated read-only IPTV deploy key
+    required: true
+  paused-until:
+    description: UTC deadline before which production jobs remain paused
+    default: '2026-11-01T00:00:00Z'
+runs:
+  using: composite
+  steps:
+    - name: Check pause and source revision
+      id: source
+      shell: bash
+      env:
+        PAUSED_UNTIL: ${{ inputs.paused-until }}
+        IPTV_READ_KEY: ${{ inputs.ssh-key }}
+      run: |
+        node --input-type=module -e '
+          const until = Date.parse(process.env.PAUSED_UNTIL);
+          if (!Number.isFinite(until) || Date.now() < until) {
+            console.error("IPTV jobs are paused; no production task was started.");
+            process.exit(1);
+          }
+          if (!process.env.IPTV_READ_KEY?.trim()) {
+            console.error("Configure a dedicated read-only IPTV SSH key before enabling jobs.");
+            process.exit(1);
+          }
+        '
+        revision=$(git rev-parse HEAD:vendor/iptv)
+        echo "sha=$revision" >> "$GITHUB_OUTPUT"
+    - uses: actions/checkout@v4
+      with:
+        repository: pengzhendong/iptv
+        ref: ${{ steps.source.outputs.sha }}
+        path: vendor/iptv
+        ssh-key: ${{ inputs.ssh-key }}
+        persist-credentials: false
+        submodules: false
+    - name: Verify pinned source
+      shell: bash
+      env:
+        EXPECTED_REVISION: ${{ steps.source.outputs.sha }}
+      run: test "$(git -C vendor/iptv rev-parse HEAD)" = "$EXPECTED_REVISION"
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+        cache-dependency-path: vendor/iptv/package-lock.json
+    - name: Install lean Node runner
+      shell: bash
+      working-directory: vendor/iptv
+      run: npm ci --ignore-scripts --omit=dev --omit=optional --workspace @iptv/runner --include-workspace-root=false

@@ -1,0 +1,38 @@
+name: IPTV playlists
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '23 23 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: iptv-maintenance
+  cancel-in-progress: false
+jobs:
+  playlists:
+    if: github.ref == 'refs/heads/main' && vars.IPTV_JOBS_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: ./.github/actions/iptv
+        with:
+          ssh-key: ${{ secrets.IPTV_READ_SSH_KEY }}
+          paused-until: ${{ vars.IPTV_PAUSED_UNTIL || '2026-11-01T00:00:00Z' }}
+      - name: Update playlist drafts
+        working-directory: vendor/iptv
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.IPTV_CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ vars.IPTV_D1_DATABASE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.IPTV_D1_TOKEN }}
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID" && test -n "$CLOUDFLARE_D1_DATABASE_ID" && test -n "$CLOUDFLARE_API_TOKEN"
+          if node --experimental-strip-types scripts/sync-playlists.ts >/dev/null 2>&1; then
+            echo "IPTV playlist task completed; publishing drafts remains a separate action."
+          else
+            echo "::error::IPTV playlist task failed. Inspect the private application; raw business logs are not published here."
+            exit 1
+          fi
