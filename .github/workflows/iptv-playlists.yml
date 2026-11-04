@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   playlists:
-    if: github.ref == 'refs/heads/main' && vars.IPTV_JOBS_ENABLED == 'true'
+    if: github.ref == 'refs/heads/master' && vars.IPTV_JOBS_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
